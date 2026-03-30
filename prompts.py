@@ -59,3 +59,16 @@ hallucination_prompt = PromptTemplate(
     input_variables=["document", "generation"],
     partial_variables={"format_instructions": hallucination_parser.get_format_instructions()},
 )
+
+generation_prompt = PromptTemplate(
+    template="""You are an assistant for question-answering tasks. 
+    Use the following pieces of retrieved context to answer the question. 
+    If you don't know the answer, just say that you don't know. 
+    Use three sentences maximum and keep the answer concise.
+
+    Question: {question} 
+    Context: {context} 
+    
+    Answer:""",
+    input_variables=["question", "context"],
+)
