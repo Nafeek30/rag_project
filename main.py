@@ -70,7 +70,7 @@ app = workflow.compile()
 # --- EXECUTE THE DEMO ---
 
 if __name__ == "__main__":
-    inputs = {"question": "What is the recommended antibiotic for strep throat?"}
+    inputs = {"question": "hallucinate: What is the treatment for strep throat?"}
     
     print(f"User Query: {inputs['question']}\n")
     print("-" * 40)
@@ -89,3 +89,9 @@ if __name__ == "__main__":
     # Extract and print the final generated answer
     print("\nFINAL ANSWER:")
     print(final_generation)
+
+# --- DEMO INPUTS ---
+# Scenario A: What is the recommended antibiotic for strep throat?
+# Scenario B: What is the capital of France?
+# Scenario C: What is the recommended treatment for a broken femur?
+# Scenario D: hallucinate: What is the treatment for strep throat?

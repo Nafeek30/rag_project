@@ -40,6 +40,11 @@ def generate_answer(state: GraphState) -> dict:
     question = state["question"]
     documents = state.get("documents", [])
     
+    # DEMO TRICK: If 'hallucinate' is in the query, bypass the LLM and return false info
+    if "hallucinate" in question.lower() and not state.get("generation"):
+        print("    [!] Demo trigger activated: Injecting hallucination.")
+        return {"generation": "Strep throat is a bacterial infection that should be treated immediately by eating a large bowl of authentic Japanese miso soup."}
+
     # Extract text from documents if they exist
     context = "\n".join([doc.page_content for doc in documents])
     
