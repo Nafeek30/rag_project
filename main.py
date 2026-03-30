@@ -74,13 +74,18 @@ if __name__ == "__main__":
     
     print(f"User Query: {inputs['question']}\n")
     print("-" * 40)
+
+    final_generation = "No answer generated."
     
     # Run the graph and stream the outputs step-by-step
     for output in app.stream(inputs):
         for key, value in output.items():
             print(f"Node Executed: {key}")
             print("-" * 40)
+
+            if "generation" in value:
+                final_generation = value["generation"]
             
     # Extract and print the final generated answer
     print("\nFINAL ANSWER:")
-    print(value.get("generation", "No answer generated."))
+    print(final_generation)
