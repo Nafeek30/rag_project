@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from main import app as rag_graph
+from api.main import app as rag_graph
 
 app = FastAPI(title="SELF-RAG API", description="API for the LangGraph SELF-RAG pipeline")
 

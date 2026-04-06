@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, START, END
-from state import GraphState
-from nodes import (
+from api.state import GraphState
+from api.nodes import (
     retrieve_mock_document,
     generate_answer,
     grade_relevance,

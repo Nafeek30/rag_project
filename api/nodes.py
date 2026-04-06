@@ -1,7 +1,7 @@
-from state import GraphState
+from api.state import GraphState
 from langchain_core.documents import Document
 from langchain_ollama import ChatOllama
-from prompts import (
+from api.prompts import (
     router_prompt,
     router_parser,
     grader_prompt,
@@ -10,7 +10,7 @@ from prompts import (
     hallucination_parser,
     generation_prompt,
 )
-from llm_config import json_llm, standard_llm
+from api.llm_config import json_llm, standard_llm
 
 def retrieve_mock_document(state: GraphState) -> dict:
     """
