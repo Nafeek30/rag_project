@@ -1,3 +1,5 @@
 langchain
 langgraph
 langchain-ollama
+fastapi
+uvicorn
