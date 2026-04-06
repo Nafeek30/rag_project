@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 
 load_dotenv()
 
@@ -16,6 +17,13 @@ def get_llm(is_json: bool = False):
         if is_json:
             kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
         return ChatOpenAI(**kwargs)
+    
+    elif PROVIDER == "groq":
+        # Uses GROQ_API_KEY from the environment
+        kwargs = {"model": "llama-3.1-8b-instant", "temperature": 0}
+        if is_json:
+            kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
+        return ChatGroq(**kwargs)
 
     else:
         # Defaults to local Ollama setup
