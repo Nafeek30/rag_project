@@ -10,9 +10,7 @@ from prompts import (
     hallucination_parser,
     generation_prompt,
 )
-
-json_llm = ChatOllama(model="llama3", format="json", temperature=0)
-standard_llm = ChatOllama(model="llama3", temperature=0)
+from llm_config import json_llm, standard_llm
 
 def retrieve_mock_document(state: GraphState) -> dict:
     """
