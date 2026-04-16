@@ -1,3 +1,4 @@
+from langchain_core.documents import Document
 from langgraph.graph import StateGraph, START, END
 from api.state import GraphState
 from api.nodes import (
@@ -67,6 +68,22 @@ workflow.add_conditional_edges("check_hallucinations", hallucination_edge)
 app = workflow.compile()
 
 
+def run_self_rag(question: str) -> tuple[str, list[Document]]:
+    """Execute the compiled graph and capture the final answer plus retrieved documents."""
+    final_generation = "No answer generated."
+    documents: list[Document] = []
+
+    for output in app.stream({"question": question}):
+        for value in output.values():
+            if "documents" in value:
+                documents = value["documents"]
+
+            if "generation" in value:
+                final_generation = value["generation"]
+
+    return final_generation, documents
+
+
 # --- EXECUTE THE DEMO ---
 
 if __name__ == "__main__":
@@ -76,8 +93,7 @@ if __name__ == "__main__":
     print("-" * 40)
 
     final_generation = "No answer generated."
-    
-    # Run the graph and stream the outputs step-by-step
+
     for output in app.stream(inputs):
         for key, value in output.items():
             print(f"Node Executed: {key}")

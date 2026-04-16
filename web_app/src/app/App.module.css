@@ -1,0 +1,51 @@
+.appShell {
+  min-height: 100vh;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(21, 153, 126, 0.16), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(206, 120, 79, 0.16), transparent 28%),
+    linear-gradient(180deg, #f6f1ea 0%, #ede4d7 100%);
+}
+
+.frame {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  gap: 20px;
+  min-height: calc(100vh - 48px);
+}
+
+.frame::before {
+  content: "";
+  position: absolute;
+  inset: 24px 18% auto auto;
+  width: 240px;
+  height: 240px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.35), rgba(20, 184, 166, 0.12));
+  filter: blur(18px);
+  pointer-events: none;
+}
+
+.main {
+  min-width: 0;
+  display: flex;
+}
+
+@media (max-width: 960px) {
+  .appShell {
+    padding: 16px;
+  }
+
+  .frame {
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - 32px);
+  }
+
+  .frame::before {
+    inset: 8px auto auto 8px;
+    width: 180px;
+    height: 180px;
+  }
+}
+

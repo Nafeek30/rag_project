@@ -1,87 +1,128 @@
-# 🧠 Adv. NLP RAG Project: SELF-RAG Pipeline
+# SELF-RAG With React UI
 
-This repository contains a modular, graph-based Retrieval-Augmented Generation (RAG) pipeline built with LangGraph, LangChain, and FastAPI. It implements the SELF-RAG architecture, allowing the LLM to actively route queries, grade document relevance, and self-correct hallucinations before returning a final answer.
+This repository combines the existing SELF-RAG LangGraph backend with the `web_page` React chat interface. The backend remains the primary implementation of the retrieval, grading, and hallucination-checking pipeline, while the frontend talks to it through a thin FastAPI compatibility layer.
 
-
-## 📂 Project Structure
+## Project structure
 
 ```text
 rag_project/
-├── .gitignore
-├── README.md
-├── pyproject.toml       # Managed by uv
-├── uv.lock              # Deterministic dependency lockfile
-├── indexing/            # Vector database ingestion and chunking scripts
-├── web_app/             # Frontend user interface
-└── api/                 # LangGraph and FastAPI backend
-    ├── __init__.py
-    ├── api.py           # FastAPI server and endpoints
-    ├── main.py          # LangGraph edge logic and compilation
-    ├── nodes.py         # LangGraph node execution functions
-    ├── prompts.py       # Pydantic schemas and LangChain prompts
-    └── llm_config.py    # LLM provider routing (Local vs. Cloud)
+├── api/                 # FastAPI app plus the compiled SELF-RAG graph
+├── indexing/            # Ingestion and indexing experiments
+├── web_app/             # React/Vite chat interface
+├── pyproject.toml       # Python dependencies managed by uv
+└── uv.lock              # Deterministic Python lockfile
 ```
 
-## Getting Started 
+## Backend setup
 
-This project uses `uv` for lightning-fast, deterministic dependency management within a WSL/Linux environment.
+1. Install Python dependencies:
 
-1. Install Dependencies
-
-Ensure you have [uv](https://docs.astral.sh/uv/) installed. Then, clone the repo and sync the environment.
 ```bash
-git clone git@github.com:Nafeek30/rag_project.git
-cd rag_project
 uv sync
 ```
 
-2. Configure Your LLM Provider
-
-You can run this pipeline using either a local LLM via Ollama (requires ~8GB VRAM), a free cloud provider via Groq, or paid via OpenAI.
+2. Create a backend environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Copy the format of the `.env.example` file and set your LLM_PROVIDER to either `ollama`, `groq`, or `openai`. If using Groq or OpenAI, provide your free API key.
+3. Set `LLM_PROVIDER` to `ollama`, `groq`, or `openai`, then provide the matching API key if needed.
 
-*Note: If you are using Ollama, ensure you have pulled the model inside your WSL environment (`ollama run llama3`).*
-
-3. Run the API Server
-
-Start the FastAPI backend using uvicorn:
+4. Start the FastAPI server:
 
 ```bash
 uv run uvicorn api.api:app --reload
 ```
 
-The server will start on http://127.0.0.1:8000.
+The API runs at `http://127.0.0.1:8000` and exposes Swagger docs at `http://127.0.0.1:8000/docs`.
 
+## Frontend setup
 
-### API Endpoints
+1. Install Node dependencies:
 
-Once the server is running, you can interact with the graph via the REST API or view the interactive Swagger documentation at http://127.0.0.1:8000/docs.
+```bash
+cd web_app
+npm install
+```
+
+2. Create a frontend environment file:
+
+```bash
+cp .env.example .env.local
+```
+
+3. Start the Vite dev server:
+
+```bash
+npm run dev
+```
+
+By default, the example frontend config points at the local FastAPI server.
+
+## API endpoints
 
 ### `POST /ask`
 
-Submits a query to the SELF-RAG pipeline.
+Single-turn backend endpoint for directly exercising the SELF-RAG pipeline.
 
-Request Body:
+Request:
 
-```JSON
+```json
 {
   "question": "What are the common symptoms of strep throat?"
 }
 ```
+
 Response:
 
-```JSON
+```json
 {
-  "answer": "Common symptoms include throat pain, swollen lymph nodes, and red tonsils."
+  "answer": "Common symptoms include throat pain, swollen lymph nodes, and red tonsils.",
+  "sources": [
+    {
+      "id": "source_1",
+      "title": "mock_medical_db",
+      "excerpt": "Strep throat is a bacterial infection..."
+    }
+  ]
 }
 ```
 
+### `POST /api/chat`
 
-### Development Notes
+UI-facing compatibility endpoint used by the React app.
 
-Use `uv add <package>` to safely update the pyproject.toml and uv.lock files.
+Request:
+
+```json
+{
+  "conversation_id": "conversation_123",
+  "message": "What are the symptoms of strep throat?",
+  "history": [
+    {
+      "role": "assistant",
+      "content": "How can I help?"
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "conversation_id": "conversation_123",
+  "answer": "Common symptoms include throat pain, swollen lymph nodes, and red tonsils.",
+  "message": {
+    "id": "assistant_123",
+    "role": "assistant",
+    "content": "Common symptoms include throat pain, swollen lymph nodes, and red tonsils.",
+    "created_at": "2026-04-15T12:00:00Z",
+    "sources": []
+  },
+  "sources": []
+}
+```
+
+`history` is accepted for forward compatibility, but the current graph still operates as a single-turn SELF-RAG flow.

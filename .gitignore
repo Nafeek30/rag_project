@@ -1,4 +1,13 @@
 .venv/
+env/
 __pycache__/
+*.pyc
 .DS_Store
 .env
+web_app/node_modules/
+web_app/dist/
+web_app/.env.local
+web_app/*.log
+web_app/*.tsbuildinfo
+web_app/vite.config.js
+web_app/vite.config.d.ts
