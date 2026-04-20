@@ -2,3 +2,10 @@
 __pycache__/
 .DS_Store
 .env
+.DS_Store
+
+# local corpus / data
+documents/
+
+# generated outputs
+indexing/output/
