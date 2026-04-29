@@ -1,0 +1,26 @@
+[project]
+name = "rag-project"
+version = "0.1.0"
+description = "SELF-RAG pipeline with Claude and Groq model switching"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain-groq>=1.1.2",
+    "langchain-openai>=1.1.12",
+    "langchain-anthropic>=0.3.0",
+    "langchain-pinecone>=0.2.0",
+    "langchain-huggingface>=0.1.0",
+    "sentence-transformers>=3.0.0",
+    "pinecone>=5.0.0",
+    "langgraph>=0.2.0",
+    "langchain>=0.3.0",
+    "langchain-ollama>=0.2.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "streamlit>=1.40.0",
+    "python-dotenv>=1.2.2",
+    "requests>=2.32.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["api*", "web_app*"]
