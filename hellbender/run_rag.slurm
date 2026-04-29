@@ -5,8 +5,8 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=2-00:00:00
-#SBATCH --output=/tmp/%x_%j.log
-#SBATCH --error=/tmp/%x_%j.log
+#SBATCH --output=/cluster/pixstor/home/mkfqm/rag_%j.log
+#SBATCH --error=/cluster/pixstor/home/mkfqm/rag_%j.log
 
 # =============================================================================
 # RAG Knowledge Assistant — Hellbender SLURM Job
