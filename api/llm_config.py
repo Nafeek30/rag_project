@@ -10,8 +10,9 @@ load_dotenv()
 DEFAULT_PROVIDER = os.getenv("LLM_PROVIDER", "groq").lower()
 
 PROVIDER_LABELS = {
-    "groq": "Groq (Llama 3.1)",
+    "groq":  "Groq (Llama 3.1)",
     "claude": "Claude (Sonnet 4.6)",
+    "grok":  "Grok (xAI)",
     "qwen3": "Qwen3 4B (offline)",
 }
 
@@ -43,12 +44,21 @@ def get_llm(is_json: bool = False, provider: str = None):
             kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
         return ChatGroq(**kwargs)
 
-    elif p == "qwen3":
-        # Qwen3 supports /no_think suffix to disable chain-of-thought for faster responses.
-        # We keep thinking ON for generation and OFF for structured grading/routing calls.
-        model_name = "qwen3:4b" if not is_json else "qwen3:4b"
+    elif p == "grok":
+        # xAI Grok — OpenAI-compatible API
         kwargs = {
-            "model": model_name,
+            "model": "grok-3-mini",
+            "temperature": 0,
+            "openai_api_key": os.getenv("GROK_API_KEY"),
+            "openai_api_base": "https://api.x.ai/v1",
+        }
+        if is_json:
+            kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
+        return ChatOpenAI(**kwargs)
+
+    elif p == "qwen3":
+        kwargs = {
+            "model": "qwen3:4b",
             "temperature": 0,
             "base_url": os.getenv("OLLAMA_HOST", "http://localhost:11434"),
         }

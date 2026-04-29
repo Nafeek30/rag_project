@@ -4,9 +4,10 @@ import requests
 API_URL = "http://127.0.0.1:8000/ask"
 
 MODEL_META = {
-    "groq":  {"label": "🟢 Groq  — Llama 3.1 8B",     "badge": "☁️ Cloud"},
-    "claude": {"label": "🟣 Claude — Sonnet 4.6",        "badge": "☁️ Cloud"},
-    "qwen3":  {"label": "🔵 Qwen3 — 4B (offline)",       "badge": "💻 Local"},
+    "groq":  {"label": "🟢 Groq  — Llama 3.1 8B",   "badge": "☁️ Cloud"},
+    "claude": {"label": "🟣 Claude — Sonnet 4.6",      "badge": "☁️ Cloud"},
+    "grok":  {"label": "🔴 Grok  — xAI Grok 3 Mini",  "badge": "☁️ Cloud"},
+    "qwen3": {"label": "🔵 Qwen3 — 4B (offline)",      "badge": "💻 Local"},
 }
 
 st.set_page_config(
@@ -49,12 +50,17 @@ with st.sidebar:
             "Anthropic's latest Sonnet. "
             "Excels at nuanced, well-reasoned answers."
         )
+    elif model_choice == "grok":
+        st.info(
+            "**Grok 3 Mini — xAI**\n\n"
+            "xAI's efficient reasoning model. "
+            "Strong at logical and analytical questions."
+        )
     else:
         st.info(
             "**Qwen3 4B — runs on your GPU**\n\n"
-            "Alibaba's state-of-the-art 4B model (April 2025). "
-            "Runs 100% offline on your RTX 3070. "
-            "Supports chain-of-thought thinking."
+            "Alibaba's SOTA 4B model (April 2025). "
+            "Runs 100% offline. Supports chain-of-thought thinking."
         )
 
     st.divider()

@@ -19,7 +19,7 @@ app.add_middleware(
 
 class QueryRequest(BaseModel):
     question: str
-    model: Literal["groq", "claude", "qwen3"] = "groq"
+    model: Literal["groq", "claude", "grok", "qwen3"] = "groq"
 
 
 @app.post("/ask")
