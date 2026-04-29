@@ -6,6 +6,7 @@ from api.nodes import (
     grade_relevance,
     check_hallucinations,
     route_question,
+    out_of_scope_answer,
 )
 
 
@@ -19,8 +20,8 @@ def relevance_edge(state: GraphState) -> str:
         return END
     if state.get("revision_needed") == "yes":
         return "generate_answer"
-    print("---EDGE: DOCUMENT NOT RELEVANT. ENDING.---")
-    return END
+    print("---EDGE: DOCUMENT NOT RELEVANT. ROUTING TO FALLBACK.---")
+    return "out_of_scope_answer"
 
 
 def post_generation_edge(state: GraphState) -> str:
@@ -50,6 +51,7 @@ workflow.add_node("retrieve_document", retrieve_document)
 workflow.add_node("grade_relevance", grade_relevance)
 workflow.add_node("generate_answer", generate_answer)
 workflow.add_node("check_hallucinations", check_hallucinations)
+workflow.add_node("out_of_scope_answer", out_of_scope_answer)
 
 workflow.add_conditional_edges(START, route_question)
 workflow.add_edge("retrieve_document", "grade_relevance")

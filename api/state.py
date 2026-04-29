@@ -10,3 +10,6 @@ class GraphState(TypedDict):
     revision_needed: str
     model_provider: str
     attempts: int  # guards against infinite hallucination-retry loops
+    sources: List[dict]  # metadata of retrieved chunks shown in UI
+    from_kb: bool  # True when answer is grounded in retrieved documents
+    thinking: bool  # Qwen3 only — enables chain-of-thought reasoning

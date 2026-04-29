@@ -56,6 +56,15 @@ def _get_llms(state: GraphState):
     return get_llm(is_json=True, provider=provider), get_llm(is_json=False, provider=provider)
 
 
+def _thinking_prefix(state: GraphState, is_json: bool = False) -> str:
+    """Return /think or /no_think prefix for Qwen3 prompts, empty string for other models."""
+    if state.get("model_provider") != "qwen3":
+        return ""
+    if is_json or not state.get("thinking", False):
+        return "/no_think "
+    return "/think "
+
+
 # ---------------------------------------------------------------------------
 # Nodes
 # ---------------------------------------------------------------------------
@@ -82,7 +91,7 @@ def _strip_thinking(text: str) -> str:
 def generate_answer(state: GraphState) -> dict:
     """Generate a final answer using the selected LLM and retrieved documents."""
     print("---NODE: GENERATE ANSWER---")
-    question = state["question"]
+    question = _thinking_prefix(state) + state["question"]
     documents = state.get("documents", [])
     _, standard_llm = _get_llms(state)
 
@@ -90,13 +99,40 @@ def generate_answer(state: GraphState) -> dict:
     response = (generation_prompt | standard_llm).invoke({"question": question, "context": context})
     text = _strip_thinking(response.content)
     attempts = state.get("attempts", 0) + 1
-    return {"generation": text, "attempts": attempts}
+
+    sources = []
+    for doc in documents:
+        meta = doc.metadata or {}
+        sources.append({
+            "snippet": doc.page_content[:300],
+            "source": meta.get("source", meta.get("title", "Research Paper")),
+            "page": str(meta.get("page", "")),
+        })
+
+    return {"generation": text, "attempts": attempts, "sources": sources, "from_kb": bool(documents)}
+
+
+def out_of_scope_answer(state: GraphState) -> dict:
+    """Return a clear message when retrieved docs are not relevant to the question."""
+    print("---NODE: OUT OF SCOPE---")
+    question = state["question"]
+    _, standard_llm = _get_llms(state)
+
+    response = standard_llm.invoke(
+        f'The user asked: "{question}"\n\n'
+        "The knowledge base (NLP/ML research papers) did not contain relevant information. "
+        "Briefly tell the user this topic is not covered in the knowledge base and what topics are covered "
+        "(attention mechanisms, transformers, RAG, embeddings, LLM training). "
+        "If you can give a short general answer, do so and clearly label it as general knowledge."
+    )
+    text = _strip_thinking(response.content)
+    return {"generation": text, "sources": [], "from_kb": False}
 
 
 def grade_relevance(state: GraphState) -> dict:
     """Grade whether the top retrieved document is relevant to the question."""
     print("---NODE: GRADE RELEVANCE---")
-    question = state["question"]
+    question = _thinking_prefix(state, is_json=True) + state["question"]
     documents = state["documents"]
     json_llm, _ = _get_llms(state)
 
@@ -123,5 +159,6 @@ def route_question(state: GraphState) -> str:
     """Decide whether retrieval is needed for the given question."""
     print("---EDGE: ROUTE QUESTION---")
     json_llm, _ = _get_llms(state)
-    result = (router_prompt | json_llm | router_parser).invoke({"question": state["question"]})
+    question = _thinking_prefix(state, is_json=True) + state["question"]
+    result = (router_prompt | json_llm | router_parser).invoke({"question": question})
     return "retrieve_document" if result.needs_retrieval else "generate_answer"

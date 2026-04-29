@@ -17,7 +17,7 @@ PROVIDER_LABELS = {
 }
 
 
-def get_llm(is_json: bool = False, provider: str = None):
+def get_llm(is_json: bool = False, provider: str = None, thinking: bool = False):
     """Return the appropriate LLM instance for the given provider."""
     p = (provider or DEFAULT_PROVIDER).lower()
 
