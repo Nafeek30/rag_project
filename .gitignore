@@ -1,11 +1,25 @@
-.venv/
-__pycache__/
-*.pyc
+# Environment — never commit real API keys
 .env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
 .DS_Store
+Thumbs.db
 
-# local corpus / data
-documents/
-
-# generated outputs
-indexing/output/
+# Logs
+*.log

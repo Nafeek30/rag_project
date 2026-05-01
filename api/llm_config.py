@@ -3,35 +3,76 @@ from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
+from langchain_anthropic import ChatAnthropic
 
 load_dotenv()
 
-# defaulting to 'ollama'
-PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower()
+DEFAULT_PROVIDER = os.getenv("LLM_PROVIDER", "groq").lower()
 
-def get_llm(is_json: bool = False):
-    """Returns the appropriate LLM based on environment configuration."""
-    if PROVIDER == "openai":
-        # Uses OPENAI_API_KEY from the environment
+PROVIDER_LABELS = {
+    "groq":  "Groq (Llama 3.1)",
+    "claude": "Claude (Sonnet 4.6)",
+    "grok":  "Grok (xAI)",
+    "qwen3": "Qwen3 4B (offline)",
+}
+
+
+def get_llm(is_json: bool = False, provider: str = None, thinking: bool = False):
+    """Return the appropriate LLM instance for the given provider."""
+    p = (provider or DEFAULT_PROVIDER).lower()
+
+    if p in ("claude", "anthropic"):
+        return ChatAnthropic(
+            model="claude-sonnet-4-6",
+            temperature=0,
+            anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
+        )
+
+    elif p == "openai":
         kwargs = {"model": "gpt-4o-mini", "temperature": 0}
         if is_json:
             kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
         return ChatOpenAI(**kwargs)
-    
-    elif PROVIDER == "groq":
-        # Uses GROQ_API_KEY from the environment
-        kwargs = {"model": "llama-3.1-8b-instant", "temperature": 0}
+
+    elif p == "groq":
+        kwargs = {
+            "model": "llama-3.1-8b-instant",
+            "temperature": 0,
+            "groq_api_key": os.getenv("GROQ_API_KEY"),
+        }
         if is_json:
             kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
         return ChatGroq(**kwargs)
 
+    elif p == "grok":
+        # xAI Grok — OpenAI-compatible API
+        kwargs = {
+            "model": "grok-3-mini",
+            "temperature": 0,
+            "openai_api_key": os.getenv("GROK_API_KEY"),
+            "openai_api_base": "https://api.x.ai/v1",
+        }
+        if is_json:
+            kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
+        return ChatOpenAI(**kwargs)
+
+    elif p == "qwen3":
+        kwargs = {
+            "model": "qwen3:4b",
+            "temperature": 0,
+            "base_url": os.getenv("OLLAMA_HOST", "http://localhost:11434"),
+        }
+        if is_json:
+            kwargs["format"] = "json"
+        return ChatOllama(**kwargs)
+
     else:
-        # Defaults to local Ollama setup
         kwargs = {"model": "llama3", "temperature": 0}
         if is_json:
             kwargs["format"] = "json"
         return ChatOllama(**kwargs)
 
-# Initialize critic and generator
+
+# Module-level defaults
 json_llm = get_llm(is_json=True)
 standard_llm = get_llm(is_json=False)
