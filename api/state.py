@@ -13,3 +13,4 @@ class GraphState(TypedDict):
     sources: List[dict]  # metadata of retrieved chunks shown in UI
     from_kb: bool  # True when answer is grounded in retrieved documents
     thinking: bool  # Qwen3 only — enables chain-of-thought reasoning
+    query_vector: List[float]  # embedding of the question, used for 3D visualization

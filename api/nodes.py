@@ -77,9 +77,11 @@ def retrieve_document(state: GraphState) -> dict:
             "documents": [],
             "generation": "⚠️ Pinecone API key is not set. Add PINECONE_API_KEY to your .env file to enable retrieval.",
         }
-    docs = _get_retriever().invoke(state["question"])
+    retriever = _get_retriever()
+    docs = retriever.invoke(state["question"])
     print(f"    Retrieved {len(docs)} documents")
-    return {"documents": docs}
+    query_vector = retriever.vectorstore.embeddings.embed_query(state["question"])
+    return {"documents": docs, "query_vector": query_vector}
 
 
 def _strip_thinking(text: str) -> str:

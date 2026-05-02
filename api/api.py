@@ -34,6 +34,7 @@ async def ask_question(request: QueryRequest):
     final_generation = "No answer generated."
     sources = []
     from_kb = False
+    query_vector = []
 
     for output in rag_graph.stream(inputs):
         for key, value in output.items():
@@ -43,8 +44,10 @@ async def ask_question(request: QueryRequest):
                 sources = value["sources"]
             if "from_kb" in value:
                 from_kb = value["from_kb"]
+            if "query_vector" in value:
+                query_vector = value["query_vector"]
 
-    return {"answer": final_generation, "model": request.model, "sources": sources, "from_kb": from_kb}
+    return {"answer": final_generation, "model": request.model, "sources": sources, "from_kb": from_kb, "query_vector": query_vector}
 
 
 @app.get("/health")

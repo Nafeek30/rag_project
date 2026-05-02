@@ -1,9 +1,17 @@
 import io
 import time
+import numpy as np
 import streamlit as st
 import requests
+import plotly.graph_objects as go
 from wordcloud import WordCloud, STOPWORDS
 import matplotlib.pyplot as plt
+
+CACHE_PATH = "web_app/vector_cache.npz"
+CLUSTER_COLORS = [
+    "#4FC3F7", "#81C784", "#FFB74D",
+    "#F06292", "#CE93D8", "#80CBC4",
+]
 
 API_URL = "http://127.0.0.1:8000/ask"
 
@@ -39,6 +47,9 @@ defaults = {
     "kb_hits": 0,
     "model_counts": {k: 0 for k in MODEL_META},
     "response_times": [],
+    "last_query_sources": [],
+    "last_question": "",
+    "last_query_vector": [],
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -191,7 +202,7 @@ def render_assistant_bubble(content, model, sources, from_kb, elapsed, placehold
 
 
 # ---------------------------------------------------------------------------
-# Main layout — chat (left) + word cloud (right)
+# Main layout
 # ---------------------------------------------------------------------------
 
 st.title("🧠 RAG Knowledge Assistant")
@@ -199,126 +210,240 @@ st.caption("SELF-RAG · Pinecone vector search · NLP/ML research papers")
 
 render_wordcloud(wc_placeholder)
 
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        if msg["role"] == "assistant":
-            render_assistant_bubble(
-                msg["content"], msg["model"],
-                msg.get("sources", []), msg.get("from_kb", False),
-                msg.get("elapsed", 0),
-            )
-        else:
-            st.markdown(msg["content"])
+tab_chat, tab_vector = st.tabs(["💬 Chat", "🌐 Vector Space"])
 
 # ---------------------------------------------------------------------------
-# Chat input (always full-width at the bottom)
+# Vector Space tab
 # ---------------------------------------------------------------------------
 
-if prompt := st.chat_input("Ask about attention, RAG, transformers, embeddings…"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+with tab_vector:
+    try:
+        cache = np.load(CACHE_PATH, allow_pickle=True)
+        coords  = cache["coords"]       # (N, 3)
+        texts   = cache["texts"]        # (N,)
+        sources = cache["sources"]      # (N,)
+        labels  = cache["labels"]       # (N,)
+        pca_components = cache["pca_components"]  # (3, 768)
+        pca_mean       = cache["pca_mean"]        # (768,)
 
-    with st.chat_message("user"):
-        st.markdown(prompt)
+        # Build base scatter — one trace per cluster
+        fig = go.Figure()
+        for c in range(int(labels.max()) + 1):
+            mask = labels == c
+            fig.add_trace(go.Scatter3d(
+                x=coords[mask, 0], y=coords[mask, 1], z=coords[mask, 2],
+                mode="markers",
+                name=f"Cluster {c + 1}",
+                marker=dict(size=2.5, color=CLUSTER_COLORS[c], opacity=0.55),
+                text=texts[mask],
+                hovertemplate="<b>%{text}</b><extra></extra>",
+            ))
 
-    with st.chat_message("assistant"):
-        pipeline_placeholder = st.empty()
+        # Overlay query vector + nearest cached neighbours
+        last_q = st.session_state.get("last_question", "")
+        qv = st.session_state.get("last_query_vector", [])
+        if qv:
+            q = np.array(qv, dtype=np.float32)
+            q3d = ((q - pca_mean) @ pca_components.T).reshape(1, 3)
 
-        def show_pipeline(active: int):
-            steps_html = ""
-            for i, step in enumerate(PIPELINE_STEPS):
-                if i < active:
-                    style = "color:#4CAF50;font-weight:bold;"
-                    icon = "✅"
-                elif i == active:
-                    style = "color:#2196F3;font-weight:bold;"
-                    icon = "⚡"
-                else:
-                    style = "color:#555;"
-                    icon = "○"
-                steps_html += f'<span style="{style}">{icon} {step}</span>'
-                if i < len(PIPELINE_STEPS) - 1:
-                    steps_html += ' <span style="color:#444;">→</span> '
-            pipeline_placeholder.markdown(
-                f'<div style="font-size:0.8em;padding:4px 0;">{steps_html}</div>',
-                unsafe_allow_html=True,
+            # 5 nearest cached points to the projected query
+            dists = np.linalg.norm(coords - q3d, axis=1)
+            nn_idx = np.argsort(dists)[:5]
+            nn_coords = coords[nn_idx]
+            nn_texts = texts[nn_idx]
+
+            # Draw lines from query to each neighbour
+            for nc, nt in zip(nn_coords, nn_texts):
+                fig.add_trace(go.Scatter3d(
+                    x=[q3d[0,0], nc[0]], y=[q3d[0,1], nc[1]], z=[q3d[0,2], nc[2]],
+                    mode="lines",
+                    line=dict(color="#FF5252", width=2),
+                    showlegend=False,
+                    hoverinfo="skip",
+                ))
+
+            # Nearest neighbours (red diamonds)
+            fig.add_trace(go.Scatter3d(
+                x=nn_coords[:, 0], y=nn_coords[:, 1], z=nn_coords[:, 2],
+                mode="markers",
+                name="Nearest chunks",
+                marker=dict(size=7, color="#FF5252", symbol="diamond",
+                            line=dict(width=1, color="white")),
+                text=nn_texts,
+                hovertemplate="<b>%{text}</b><extra></extra>",
+            ))
+
+            # Query point (gold star)
+            fig.add_trace(go.Scatter3d(
+                x=q3d[:, 0], y=q3d[:, 1], z=q3d[:, 2],
+                mode="markers",
+                name="Query",
+                marker=dict(size=10, color="#FFD600", symbol="diamond",
+                            line=dict(width=2, color="white")),
+                hovertemplate=f"<b>Query:</b> {last_q[:60]}<extra></extra>",
+            ))
+
+        fig.update_layout(
+            height=620,
+            margin=dict(l=0, r=0, t=30, b=0),
+            paper_bgcolor="#0e1117",
+            scene=dict(
+                bgcolor="#0e1117",
+                xaxis=dict(title="PC1", showgrid=False, zeroline=False,
+                           tickfont=dict(color="#555")),
+                yaxis=dict(title="PC2", showgrid=False, zeroline=False,
+                           tickfont=dict(color="#555")),
+                zaxis=dict(title="PC3", showgrid=False, zeroline=False,
+                           tickfont=dict(color="#555")),
+            ),
+            legend=dict(font=dict(color="white"), bgcolor="rgba(0,0,0,0)"),
+        )
+
+        col_info, col_plot = st.columns([1, 3])
+        with col_info:
+            st.markdown("**About this view**")
+            st.caption(
+                f"**{len(coords):,}** chunks sampled from {len(labels):,} total. "
+                f"768-dim embeddings reduced to 3D via PCA "
+                f"(20.3% variance explained). "
+                f"Coloured by KMeans cluster (6 groups)."
             )
+            st.divider()
+            if last_q:
+                st.markdown("**Last query**")
+                st.info(f'"{last_q}"')
+                st.caption("Showing query position 🟡 and 5 nearest cached chunks 🔴")
+            else:
+                st.caption("Ask a question in the Chat tab to see retrieved chunks highlighted here.")
 
-        show_pipeline(0)
-        t_start = time.time()
-        answer_placeholder = st.empty()
+        with col_plot:
+            st.plotly_chart(fig, use_container_width=True)
 
-        try:
-            with st.spinner("Running pipeline…"):
-                resp = requests.post(
-                    API_URL,
-                    json={"question": prompt, "model": model_choice, "thinking": thinking_on},
-                    timeout=MODEL_META[model_choice]["timeout"],
+    except FileNotFoundError:
+        st.warning(
+            "Vector cache not found. Run this once from the project root:\n\n"
+            "```bash\npython scripts/build_vector_cache.py\n```"
+        )
+
+with tab_chat:
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            if msg["role"] == "assistant":
+                render_assistant_bubble(
+                    msg["content"], msg["model"],
+                    msg.get("sources", []), msg.get("from_kb", False),
+                    msg.get("elapsed", 0),
                 )
-                resp.raise_for_status()
-                data = resp.json()
-                answer = data.get("answer", "No answer returned.")
-                used_model = data.get("model", model_choice)
-                sources = data.get("sources", [])
-                from_kb = data.get("from_kb", False)
+            else:
+                st.markdown(msg["content"])
 
-            show_pipeline(4)
+    if prompt := st.chat_input("Ask about attention, RAG, transformers, embeddings…"):
+        st.session_state.messages.append({"role": "user", "content": prompt})
 
-            words = answer.split()
-            streamed = ""
-            for word in words:
-                streamed += word + " "
-                answer_placeholder.markdown(streamed + "▌")
-                time.sleep(0.025)
-            answer_placeholder.markdown(answer)
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-        except requests.exceptions.ConnectionError:
-            answer = "❌ Cannot reach the API. Run: `uvicorn api.api:app --reload`"
-            used_model, sources, from_kb = model_choice, [], False
-            answer_placeholder.markdown(answer)
-        except requests.exceptions.Timeout:
-            t = MODEL_META[model_choice]["timeout"]
-            answer = f"❌ Timed out after {t}s. Check Ollama is running for Qwen3."
-            used_model, sources, from_kb = model_choice, [], False
-            answer_placeholder.markdown(answer)
-        except Exception as e:
-            answer = f"❌ Error: {e}"
-            used_model, sources, from_kb = model_choice, [], False
-            answer_placeholder.markdown(answer)
+        with st.chat_message("assistant"):
+            pipeline_placeholder = st.empty()
 
-        elapsed = round(time.time() - t_start, 1)
-        pipeline_placeholder.empty()
+            def show_pipeline(active: int):
+                steps_html = ""
+                for i, step in enumerate(PIPELINE_STEPS):
+                    if i < active:
+                        style = "color:#4CAF50;font-weight:bold;"
+                        icon = "✅"
+                    elif i == active:
+                        style = "color:#2196F3;font-weight:bold;"
+                        icon = "⚡"
+                    else:
+                        style = "color:#555;"
+                        icon = "○"
+                    steps_html += f'<span style="{style}">{icon} {step}</span>'
+                    if i < len(PIPELINE_STEPS) - 1:
+                        steps_html += ' <span style="color:#444;">→</span> '
+                pipeline_placeholder.markdown(
+                    f'<div style="font-size:0.8em;padding:4px 0;">{steps_html}</div>',
+                    unsafe_allow_html=True,
+                )
 
-        if sources:
-            with st.expander(f"📚 Sources — {len(sources)} chunk(s) from Pinecone"):
-                for i, src in enumerate(sources, 1):
-                    label = src.get("source", "Research Paper")
-                    page = src.get("page", "")
-                    header = f"**Chunk {i}** — `{label}`" + (f"  ·  p.{page}" if page else "")
-                    st.markdown(header)
-                    st.caption(src.get("snippet", "")[:300])
-                    if i < len(sources):
-                        st.divider()
+            show_pipeline(0)
+            t_start = time.time()
+            answer_placeholder = st.empty()
 
-        c1, c2, c3 = st.columns([3, 1, 1])
-        c1.caption(f"Answered by {MODEL_META[used_model]['label']}")
-        c2.caption("📖 KB" if from_kb else "💭 General")
-        c3.caption(f"⏱ {elapsed}s")
+            try:
+                with st.spinner("Running pipeline…"):
+                    resp = requests.post(
+                        API_URL,
+                        json={"question": prompt, "model": model_choice, "thinking": thinking_on},
+                        timeout=MODEL_META[model_choice]["timeout"],
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+                    answer = data.get("answer", "No answer returned.")
+                    used_model = data.get("model", model_choice)
+                    sources = data.get("sources", [])
+                    from_kb = data.get("from_kb", False)
+                    query_vector = data.get("query_vector", [])
 
-        # ── Update session stats ──────────────────────────────────
-        st.session_state.total_queries += 1
-        st.session_state.model_counts[used_model] += 1
-        st.session_state.response_times.append(elapsed)
-        if from_kb:
-            st.session_state.kb_hits += 1
+                show_pipeline(4)
 
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": answer,
-        "model": used_model,
-        "sources": sources,
-        "from_kb": from_kb,
-        "elapsed": elapsed,
-    })
+                words = answer.split()
+                streamed = ""
+                for word in words:
+                    streamed += word + " "
+                    answer_placeholder.markdown(streamed + "▌")
+                    time.sleep(0.025)
+                answer_placeholder.markdown(answer)
 
-    # Refresh word cloud with new question included
-    render_wordcloud(wc_placeholder)
+            except requests.exceptions.ConnectionError:
+                answer = "❌ Cannot reach the API. Run: `uvicorn api.api:app --reload`"
+                used_model, sources, from_kb, query_vector = model_choice, [], False, []
+                answer_placeholder.markdown(answer)
+            except requests.exceptions.Timeout:
+                t = MODEL_META[model_choice]["timeout"]
+                answer = f"❌ Timed out after {t}s. Check Ollama is running for Qwen3."
+                used_model, sources, from_kb, query_vector = model_choice, [], False, []
+                answer_placeholder.markdown(answer)
+            except Exception as e:
+                answer = f"❌ Error: {e}"
+                used_model, sources, from_kb, query_vector = model_choice, [], False, []
+                answer_placeholder.markdown(answer)
+
+            elapsed = round(time.time() - t_start, 1)
+            pipeline_placeholder.empty()
+
+            if sources:
+                with st.expander(f"📚 Sources — {len(sources)} chunk(s) from Pinecone"):
+                    for i, src in enumerate(sources, 1):
+                        label = src.get("source", "Research Paper")
+                        page = src.get("page", "")
+                        header = f"**Chunk {i}** — `{label}`" + (f"  ·  p.{page}" if page else "")
+                        st.markdown(header)
+                        st.caption(src.get("snippet", "")[:300])
+                        if i < len(sources):
+                            st.divider()
+
+            c1, c2, c3 = st.columns([3, 1, 1])
+            c1.caption(f"Answered by {MODEL_META[used_model]['label']}")
+            c2.caption("📖 KB" if from_kb else "💭 General")
+            c3.caption(f"⏱ {elapsed}s")
+
+            st.session_state.total_queries += 1
+            st.session_state.model_counts[used_model] += 1
+            st.session_state.response_times.append(elapsed)
+            if from_kb:
+                st.session_state.kb_hits += 1
+            st.session_state.last_query_sources = sources
+            st.session_state.last_question = prompt
+            st.session_state.last_query_vector = query_vector
+
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": answer,
+            "model": used_model,
+            "sources": sources,
+            "from_kb": from_kb,
+            "elapsed": elapsed,
+        })
+
+        render_wordcloud(wc_placeholder)
