@@ -13,13 +13,15 @@ CLUSTER_COLORS = [
     "#F06292", "#CE93D8", "#80CBC4",
 ]
 
-API_URL = "http://127.0.0.1:8000/ask"
+ASK_URL = "http://127.0.0.1:8000/ask"
+DEBUG_URL = "http://127.0.0.1:8000/ask_debug"
 
 MODEL_META = {
     "groq":  {"label": "🟢 Groq  — Llama 3.1 8B",   "badge": "☁️ Cloud", "timeout": 30},
     "claude": {"label": "🟣 Claude — Sonnet 4.6",      "badge": "☁️ Cloud", "timeout": 60},
     "grok":  {"label": "🔴 Grok  — xAI Grok 3 Mini",  "badge": "☁️ Cloud", "timeout": 60},
     "qwen3": {"label": "🔵 Qwen3 — 4B (offline)",      "badge": "💻 Local",  "timeout": 120},
+    "openai": {"label": "⚫ OpenAI — GPT-4o mini",      "badge": "☁️ Cloud", "timeout": 60},
 }
 
 PIPELINE_STEPS = ["Route", "Retrieve", "Grade", "Generate", "Validate"]
@@ -50,6 +52,7 @@ defaults = {
     "last_query_sources": [],
     "last_question": "",
     "last_query_vector": [],
+    "rag_metrics_enabled": False,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -88,6 +91,8 @@ with st.sidebar:
         st.info("**Claude — Sonnet 4.6**\n\nAnthropic's latest. Best for nuanced, well-reasoned answers.")
     elif model_choice == "grok":
         st.info("**Grok 3 Mini — xAI**\n\nStrong at logical and analytical questions.")
+    elif model_choice == "openai":
+        st.info("**OpenAI — GPT-4o mini**\n\nFast OpenAI model for low-cost RAG evaluation and comparison.")
     else:
         st.info("**Qwen3 4B — local GPU**\n\nRuns 100% offline on your RTX 3070.")
 
@@ -180,7 +185,130 @@ def render_wordcloud(placeholder):
             st.caption("Ask questions to see topic trends here")
 
 
-def render_assistant_bubble(content, model, sources, from_kb, elapsed, placeholder=None):
+def wrapped_text_block(text: str):
+    st.caption(str(text))
+
+
+def render_relevance_grades(grades: list):
+    header = st.columns([0.7, 0.9, 4.4])
+    header[0].markdown("**Rank**")
+    header[1].markdown("**Relevant**")
+    header[2].markdown("**Reason**")
+    st.divider()
+
+    for grade in grades:
+        cols = st.columns([0.7, 0.9, 4.4])
+        cols[0].markdown(str(grade.get("rank", "")))
+        cols[1].markdown("Yes" if grade.get("is_relevant") else "No")
+        with cols[2]:
+            wrapped_text_block(grade.get("reason", ""))
+        st.divider()
+
+
+def render_metrics_expander(trace: dict, elapsed: float):
+    retrieved = trace.get("retrieved_docs", [])
+    relevance_grades = trace.get("relevance_grades", [])
+    relevant_indices = trace.get("relevant_doc_indices", [])
+    hallucination = trace.get("hallucination_grade", {})
+    node_trace = trace.get("node_trace", [])
+    is_grounded = hallucination.get("is_grounded", trace.get("is_grounded"))
+
+    if not trace:
+        return
+
+    with st.expander("📊 RAG Metrics"):
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c1.metric("Latency", f"{elapsed}s")
+        c2.metric("Retrieved", len(retrieved))
+        c3.metric("Relevant", len(relevant_indices))
+        c4.metric("Attempts", trace.get("attempts", 0))
+        c5.metric("Grounded", "Yes" if is_grounded else "No")
+
+        route_label = "retrieval" if trace.get("route_needs_retrieval") else "direct answer"
+        pipeline_nodes = [entry.get("node", "") for entry in node_trace if entry.get("node")]
+        if pipeline_nodes:
+            st.caption(f"Route: {route_label} · {' → '.join(pipeline_nodes)}")
+        else:
+            st.caption(f"Route: {route_label}")
+
+        scores = [
+            {
+                "rank": doc.get("rank", i + 1),
+                "score": doc.get("score"),
+                "source": doc.get("source", "Unknown"),
+                "node_type": doc.get("node_type", ""),
+            }
+            for i, doc in enumerate(retrieved)
+            if doc.get("score") is not None
+        ]
+        if scores:
+            score_fig = go.Figure(go.Bar(
+                x=[f"Rank {row['rank']}" for row in scores],
+                y=[row["score"] for row in scores],
+                marker_color=[
+                    "#4CAF50" if row["rank"] in relevant_indices else "#78909C"
+                    for row in scores
+                ],
+                hovertext=[
+                    f"{row['source']}<br>Node: {row['node_type']}"
+                    for row in scores
+                ],
+                hoverinfo="text+y",
+            ))
+            score_fig.update_layout(
+                title="Retrieval Scores",
+                height=260,
+                margin=dict(l=0, r=0, t=40, b=0),
+                yaxis_title="Score",
+                xaxis_title="Retrieved rank",
+            )
+            st.plotly_chart(score_fig, use_container_width=True)
+
+        if retrieved:
+            source_counts = {}
+            for doc in retrieved:
+                source = doc.get("source", "Unknown")
+                source_counts[source] = source_counts.get(source, 0) + 1
+            source_fig = go.Figure(go.Bar(
+                x=list(source_counts.values()),
+                y=list(source_counts.keys()),
+                orientation="h",
+                marker_color="#4FC3F7",
+            ))
+            source_fig.update_layout(
+                title="Retrieved Source Distribution",
+                height=max(220, 42 * len(source_counts)),
+                margin=dict(l=0, r=0, t=40, b=0),
+                xaxis_title="Chunks",
+                yaxis_title="",
+            )
+            st.plotly_chart(source_fig, use_container_width=True)
+
+        if relevance_grades:
+            st.markdown("**Relevance Grades**")
+            render_relevance_grades(relevance_grades)
+
+        st.markdown("**Grounding**")
+        if is_grounded:
+            st.success("Grounded in retrieved context")
+        else:
+            st.warning("Potential grounding issue")
+        if hallucination.get("reason"):
+            wrapped_text_block(hallucination["reason"])
+
+        unsupported = hallucination.get("unsupported_claims", [])
+        contradicted = hallucination.get("contradicted_claims", [])
+        if unsupported:
+            st.markdown("**Unsupported claims**")
+            for claim in unsupported:
+                wrapped_text_block(f"- {claim}")
+        if contradicted:
+            st.markdown("**Contradicted claims**")
+            for claim in contradicted:
+                wrapped_text_block(f"- {claim}")
+
+
+def render_assistant_bubble(content, model, sources, from_kb, elapsed, trace=None, placeholder=None):
     target = placeholder if placeholder else st
     target.markdown(content)
 
@@ -194,6 +322,8 @@ def render_assistant_bubble(content, model, sources, from_kb, elapsed, placehold
                 st.caption(src.get("snippet", "")[:300])
                 if i < len(sources):
                     st.divider()
+
+    render_metrics_expander(trace or {}, elapsed)
 
     col1, col2, col3 = st.columns([3, 1, 1])
     col1.caption(f"Answered by {MODEL_META[model]['label']}")
@@ -332,10 +462,16 @@ with tab_chat:
                 render_assistant_bubble(
                     msg["content"], msg["model"],
                     msg.get("sources", []), msg.get("from_kb", False),
-                    msg.get("elapsed", 0),
+                    msg.get("elapsed", 0), msg.get("trace", {}),
                 )
             else:
                 st.markdown(msg["content"])
+
+    metrics_enabled = st.checkbox(
+        "Show RAG metrics",
+        key="rag_metrics_enabled",
+        help="Adds retrieval, relevance, grounding, and pipeline trace metrics for new answers.",
+    )
 
     if prompt := st.chat_input("Ask about attention, RAG, transformers, embeddings…"):
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -369,11 +505,13 @@ with tab_chat:
             show_pipeline(0)
             t_start = time.time()
             answer_placeholder = st.empty()
+            trace = {}
 
             try:
                 with st.spinner("Running pipeline…"):
+                    api_url = DEBUG_URL if metrics_enabled else ASK_URL
                     resp = requests.post(
-                        API_URL,
+                        api_url,
                         json={"question": prompt, "model": model_choice, "thinking": thinking_on},
                         timeout=MODEL_META[model_choice]["timeout"],
                     )
@@ -384,6 +522,7 @@ with tab_chat:
                     sources = data.get("sources", [])
                     from_kb = data.get("from_kb", False)
                     query_vector = data.get("query_vector", [])
+                    trace = data.get("trace", {}) if metrics_enabled else {}
 
                 show_pipeline(4)
 
@@ -397,16 +536,16 @@ with tab_chat:
 
             except requests.exceptions.ConnectionError:
                 answer = "❌ Cannot reach the API. Run: `uvicorn api.api:app --reload`"
-                used_model, sources, from_kb, query_vector = model_choice, [], False, []
+                used_model, sources, from_kb, query_vector, trace = model_choice, [], False, [], {}
                 answer_placeholder.markdown(answer)
             except requests.exceptions.Timeout:
                 t = MODEL_META[model_choice]["timeout"]
                 answer = f"❌ Timed out after {t}s. Check Ollama is running for Qwen3."
-                used_model, sources, from_kb, query_vector = model_choice, [], False, []
+                used_model, sources, from_kb, query_vector, trace = model_choice, [], False, [], {}
                 answer_placeholder.markdown(answer)
             except Exception as e:
                 answer = f"❌ Error: {e}"
-                used_model, sources, from_kb, query_vector = model_choice, [], False, []
+                used_model, sources, from_kb, query_vector, trace = model_choice, [], False, [], {}
                 answer_placeholder.markdown(answer)
 
             elapsed = round(time.time() - t_start, 1)
@@ -422,6 +561,8 @@ with tab_chat:
                         st.caption(src.get("snippet", "")[:300])
                         if i < len(sources):
                             st.divider()
+
+            render_metrics_expander(trace, elapsed)
 
             c1, c2, c3 = st.columns([3, 1, 1])
             c1.caption(f"Answered by {MODEL_META[used_model]['label']}")
@@ -444,6 +585,7 @@ with tab_chat:
             "sources": sources,
             "from_kb": from_kb,
             "elapsed": elapsed,
+            "trace": trace,
         })
 
         render_wordcloud(wc_placeholder)

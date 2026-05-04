@@ -24,6 +24,12 @@ def relevance_edge(state: GraphState) -> str:
     return "out_of_scope_answer"
 
 
+def route_edge(state: GraphState) -> str:
+    if state.get("route_needs_retrieval"):
+        return "retrieve_document"
+    return "generate_answer"
+
+
 def post_generation_edge(state: GraphState) -> str:
     if state.get("documents"):
         return "check_hallucinations"
@@ -48,12 +54,14 @@ def hallucination_edge(state: GraphState) -> str:
 workflow = StateGraph(GraphState)
 
 workflow.add_node("retrieve_document", retrieve_document)
+workflow.add_node("route_question", route_question)
 workflow.add_node("grade_relevance", grade_relevance)
 workflow.add_node("generate_answer", generate_answer)
 workflow.add_node("check_hallucinations", check_hallucinations)
 workflow.add_node("out_of_scope_answer", out_of_scope_answer)
 
-workflow.add_conditional_edges(START, route_question)
+workflow.add_edge(START, "route_question")
+workflow.add_conditional_edges("route_question", route_edge)
 workflow.add_edge("retrieve_document", "grade_relevance")
 workflow.add_conditional_edges("grade_relevance", relevance_edge)
 workflow.add_conditional_edges("generate_answer", post_generation_edge)
