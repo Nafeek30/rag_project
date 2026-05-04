@@ -71,8 +71,3 @@ def get_llm(is_json: bool = False, provider: str = None, thinking: bool = False)
         if is_json:
             kwargs["format"] = "json"
         return ChatOllama(**kwargs)
-
-
-# Module-level defaults
-json_llm = get_llm(is_json=True)
-standard_llm = get_llm(is_json=False)

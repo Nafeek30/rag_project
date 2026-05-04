@@ -1,3 +1,5 @@
+from typing import List
+
 from pydantic import BaseModel, Field
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
@@ -10,18 +12,36 @@ class RouteQuery(BaseModel):
     )
 
 
-class GradeDocuments(BaseModel):
-    """Boolean score for relevance check on retrieved documents."""
+class RetrievedDocumentRelevance(BaseModel):
+    """Relevance grade for one retrieved document."""
+    rank: int = Field(description="The 1-based rank of the retrieved document.")
     is_relevant: bool = Field(
         description="Set to True if the document contains keyword(s) or semantic meaning related to the question."
+    )
+    reason: str = Field(description="Brief reason for the relevance decision.")
+
+
+class GradeDocuments(BaseModel):
+    """Boolean scores for relevance checks on retrieved documents."""
+    documents: List[RetrievedDocumentRelevance] = Field(
+        description="One relevance grade for each retrieved document."
     )
 
 
 class GradeHallucinations(BaseModel):
     """Boolean score for hallucination present in generation answer."""
     is_grounded: bool = Field(
-        description="Set to True if the answer is completely grounded in / supported by the retrieved document."
+        description="Set to True if the answer is completely grounded in / supported by the retrieved documents."
     )
+    unsupported_claims: List[str] = Field(
+        default_factory=list,
+        description="Factual claims in the answer that are absent from the retrieved documents.",
+    )
+    contradicted_claims: List[str] = Field(
+        default_factory=list,
+        description="Factual claims in the answer that conflict with the retrieved documents.",
+    )
+    reason: str = Field(description="Brief reason for the grounding decision.")
 
 
 router_parser = PydanticOutputParser(pydantic_object=RouteQuery)
@@ -45,27 +65,33 @@ User Question: {question}""",
 )
 
 grader_prompt = PromptTemplate(
-    template="""You are a strict grader assessing the relevance of a retrieved document to a user question.
-If the document contains keyword(s) or semantic meaning related to the question, grade it as relevant.
+    template="""You are a strict grader assessing the relevance of retrieved documents to a user question.
+Grade every retrieved document independently.
+If a document contains keyword(s), semantic meaning, or evidence that could help answer the question, grade it as relevant.
+Return exactly one grade for each document rank shown.
 
 {format_instructions}
 
-Retrieved Document: {document}
+Retrieved Documents:
+{documents}
+
 User Question: {question}""",
-    input_variables=["document", "question"],
+    input_variables=["documents", "question"],
     partial_variables={"format_instructions": grader_parser.get_format_instructions()},
 )
 
 hallucination_prompt = PromptTemplate(
-    template="""You are a fact-checker. Assess whether the generated answer is broadly consistent with the source document — it does not need to be a word-for-word match, paraphrasing and summarization are fine.
+    template="""You are a fact-checker. Assess whether the generated answer is broadly consistent with the retrieved source documents — it does not need to be a word-for-word match, paraphrasing and summarization are fine.
 
-Only set is_grounded to false if the answer contains factual claims that directly contradict or are entirely absent from the source document.
+Only set is_grounded to false if the answer contains factual claims that directly contradict or are entirely absent from all retrieved source documents.
 
 {format_instructions}
 
-Source Document: {document}
+Retrieved Source Documents:
+{documents}
+
 Generated Answer: {generation}""",
-    input_variables=["document", "generation"],
+    input_variables=["documents", "generation"],
     partial_variables={"format_instructions": hallucination_parser.get_format_instructions()},
 )
 
