@@ -14,6 +14,7 @@ PROVIDER_LABELS = {
     "claude": "Claude (Sonnet 4.6)",
     "grok":  "Grok (xAI)",
     "qwen3": "Qwen3 4B (offline)",
+    "openai": "OpenAI (GPT-4o mini)",
 }
 
 

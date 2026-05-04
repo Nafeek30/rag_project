@@ -37,13 +37,13 @@ uv sync
 
 2. Configure Your LLM Provider
 
-You can run this pipeline using either a local LLM via Ollama (requires ~8GB VRAM), a free cloud provider via Groq, or paid via OpenAI.
+You can run this pipeline using a local LLM via Ollama/Qwen3, cloud providers via Groq, Anthropic Claude, xAI Grok, or OpenAI.
 
 ```bash
 cp .env.example .env
 ```
 
-Copy the format of the `.env.example` file and set your LLM_PROVIDER to either `ollama`, `groq`, or `openai`. If using Groq or OpenAI, provide your free API key.
+Copy the format of the `.env.example` file and set your LLM_PROVIDER to `ollama`, `groq`, `claude`, `grok`, `qwen3`, or `openai`. Add the matching provider API key for whichever cloud model you use.
 
 *Note: If you are using Ollama, ensure you have pulled the model inside your WSL environment (`ollama run llama3`).*
 

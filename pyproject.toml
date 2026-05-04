@@ -9,6 +9,7 @@ dependencies = [
     "langchain-anthropic>=0.3.0",
     "langchain-pinecone>=0.2.0",
     "langchain-huggingface>=0.1.0",
+    "einops>=0.8.0",
     "sentence-transformers>=3.0.0",
     "pinecone>=5.0.0",
     "langgraph>=0.2.0",

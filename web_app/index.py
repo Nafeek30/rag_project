@@ -20,6 +20,7 @@ MODEL_META = {
     "claude": {"label": "🟣 Claude — Sonnet 4.6",      "badge": "☁️ Cloud", "timeout": 60},
     "grok":  {"label": "🔴 Grok  — xAI Grok 3 Mini",  "badge": "☁️ Cloud", "timeout": 60},
     "qwen3": {"label": "🔵 Qwen3 — 4B (offline)",      "badge": "💻 Local",  "timeout": 120},
+    "openai": {"label": "⚫ OpenAI — GPT-4o mini",      "badge": "☁️ Cloud", "timeout": 60},
 }
 
 PIPELINE_STEPS = ["Route", "Retrieve", "Grade", "Generate", "Validate"]
@@ -88,6 +89,8 @@ with st.sidebar:
         st.info("**Claude — Sonnet 4.6**\n\nAnthropic's latest. Best for nuanced, well-reasoned answers.")
     elif model_choice == "grok":
         st.info("**Grok 3 Mini — xAI**\n\nStrong at logical and analytical questions.")
+    elif model_choice == "openai":
+        st.info("**OpenAI — GPT-4o mini**\n\nFast OpenAI model for low-cost RAG evaluation and comparison.")
     else:
         st.info("**Qwen3 4B — local GPU**\n\nRuns 100% offline on your RTX 3070.")
 

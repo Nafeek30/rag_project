@@ -6,7 +6,7 @@ from api.main import app as rag_graph
 
 app = FastAPI(
     title="SELF-RAG API",
-    description="LangGraph SELF-RAG pipeline with Claude and Groq model switching",
+    description="LangGraph SELF-RAG pipeline with multi-model switching",
 )
 
 app.add_middleware(
@@ -19,7 +19,7 @@ app.add_middleware(
 
 class QueryRequest(BaseModel):
     question: str
-    model: Literal["groq", "claude", "grok", "qwen3"] = "groq"
+    model: Literal["groq", "claude", "grok", "qwen3", "openai"] = "groq"
     thinking: bool = False
 
 
