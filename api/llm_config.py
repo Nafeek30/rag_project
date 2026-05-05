@@ -58,8 +58,10 @@ def get_llm(is_json: bool = False, provider: str = None, thinking: bool = False)
         return ChatOpenAI(**kwargs)
 
     elif p == "qwen3":
+        # Allow overriding model via env var, default to common local models
+        model = os.getenv("OLLAMA_MODEL", "qwen3:4b")
         kwargs = {
-            "model": "qwen3:4b",
+            "model": model,
             "temperature": 0,
             "base_url": os.getenv("OLLAMA_HOST", "http://localhost:11434"),
         }
