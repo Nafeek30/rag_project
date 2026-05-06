@@ -55,6 +55,7 @@ Your ONLY job is to decide whether to search the knowledge base.
 
 Rules:
 - Set needs_retrieval to true for ANY question about a concept, paper, technique, model, algorithm, or topic (even if you think you know the answer — always prefer the knowledge base).
+- Set needs_retrieval to true for ANY question about the course, syllabus, schedule, assignments, projects, instructor, course policies, communications, email, Slack, office hours, due dates, or class logistics.
 - Set needs_retrieval to false ONLY for simple arithmetic, greetings, or questions that are clearly not about any academic or technical topic.
 
 {format_instructions}
@@ -99,7 +100,12 @@ generation_prompt = PromptTemplate(
     template="""You are an assistant for question-answering tasks.
 Use the following pieces of retrieved context to answer the question.
 If you don't know the answer, just say that you don't know.
-Use three sentences maximum and keep the answer concise.
+Match the depth requested by the user:
+- If the user asks for a brief answer, be concise.
+- If the user asks for details, explanation, analysis, comparison, or a paper summary, give a thorough, well-structured answer.
+- For research papers, cover the problem, motivation, core method, key technical ideas, results or claims in the retrieved context, limitations if available, and why it matters.
+- For syllabus, schedule, or agenda questions, extract every date or class day present in the retrieved context and list the agenda for each one in chronological order. Treat the text immediately after each date as that day's agenda, even if it is brief. Do not split dates into "agenda provided" and "agenda not provided" sections when the context includes a topic after the date. Do not stop after one or two examples if more dates are present.
+Stay grounded in the retrieved context and do not invent details that are not supported.
 
 Question: {question}
 Context: {context}
