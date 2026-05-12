@@ -133,7 +133,7 @@ This project demonstrated the development of a grounded and self-reflective Retr
 Overall, the project highlights the practical potential of Self-RAG architectures for enterprise knowledge management, technical research assistance, and future domain-specific AI applications.
 
 * Code
-Github link: [[https://github.com/Nafeek30/rag_project][https://github.com/tonikazic/s26nlp]]
+Github links: [[https://github.com/Nafeek30/rag_project][https://github.com/Nafeek30/rag_project]], [[https://github.com/tonikazic/s26nlp][https://github.com/tonikazic/s26nlp]]
 
 * References
 1. P. Lewis et al., “Retrieval-augmented generation for knowledge-intensive NLP tasks,” in Proc. 34th Conf. Neural Information Processing Systems (NeurIPS), 2020, pp. 9459–9474.
