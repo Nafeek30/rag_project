@@ -135,6 +135,12 @@ Overall, the project highlights the practical potential of Self-RAG architecture
 * Code
 Github links: [[https://github.com/Nafeek30/rag_project][https://github.com/Nafeek30/rag_project]], [[https://github.com/tonikazic/s26nlp][https://github.com/tonikazic/s26nlp]]
 
+* Quick Start instructions
+From repo root use two terminals:
+source .venv/bin/activate
+Terminal 1: MPLCONFIGDIR=.matplotlib HF_HOME=.hf-cache SENTENCE_TRANSFORMERS_HOME=.sentence-transformers HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 uv run --cache-dir .uv-cache uvicorn api.api:app --host 127.0.0.1 --port 8000
+Terminal 2: MPLCONFIGDIR=.matplotlib STREAMLIT_BROWSER_GATHER_USAGE_STATS=false uv run --cache-dir .uv-cache streamlit run web_app/index.py --server.port 8502 --server.address 127.0.0.1 --server.headless true
+
 * References
 1. P. Lewis et al., “Retrieval-augmented generation for knowledge-intensive NLP tasks,” in Proc. 34th Conf. Neural Information Processing Systems (NeurIPS), 2020, pp. 9459–9474.
 2. S. Sarth et al., “RAPTOR: Recursive abstractive processing for tree-organized retrieval,” arXiv preprint arXiv:2401.18059, 2024.
