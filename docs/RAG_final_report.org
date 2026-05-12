@@ -139,4 +139,4 @@ Github link: [[https://github.com/Nafeek30/rag_project][https://github.com/tonik
 1. P. Lewis et al., “Retrieval-augmented generation for knowledge-intensive NLP tasks,” in Proc. 34th Conf. Neural Information Processing Systems (NeurIPS), 2020, pp. 9459–9474.
 2. S. Sarth et al., “RAPTOR: Recursive abstractive processing for tree-organized retrieval,” arXiv preprint arXiv:2401.18059, 2024.
 3.  A. Asai et al., “Self-RAG: Learning to retrieve, generate, and critique through self-reflection,” arXiv preprint arXiv:2310.11511, 2023.
-4. A. Narayanamurthy, "Beyond RAG: Raptor for Long Context Retrieval," Eikos, Jun. 03, 2024. Available: [[https://eikos.substack.com/p/beyond-rag-raptor-for-long-context][Beyond RAG: Raptor for Long Context Retrieval]]. [Accessed: May 11, 2026].
+4. A. Narayanamurthy, "Beyond RAG: Raptor for Long Context Retrieval," Eikos, Jun. 03, 2024. Available: [[https://eikos.substack.com/p/beyond-rag-raptor-for-long-context][https://eikos.substack.com/p/beyond-rag-raptor-for-long-context]]. [Accessed: May 11, 2026].
